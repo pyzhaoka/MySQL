@@ -3,19 +3,19 @@ name: Build EXE
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-latest  # 使用Windows环境编译
+    runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4  # 更新到v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5  # 更新到v5
       with:
-        python-version: '3.9'
+        python-version: '3.11'  # 推荐使用更新的Python版本
 
     - name: Install dependencies
       run: |
@@ -27,7 +27,7 @@ jobs:
         pyinstaller --onefile --windowed --name MySQLBackupTool main.py
 
     - name: Upload Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4  # 关键修改：更新到v4
       with:
         name: MySQLBackupTool
         path: dist/MySQLBackupTool.exe
