@@ -10,24 +10,27 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4  # 更新到v4
-
+    - uses: actions/checkout@v4
     - name: Set up Python
-      uses: actions/setup-python@v5  # 更新到v5
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.11'  # 推荐使用更新的Python版本
-
+        python-version: '3.11'
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-
     - name: Build EXE with PyInstaller
       run: |
-        pyinstaller --onefile --windowed --name MySQLBackupTool main.py
-
+        pyinstaller \
+          --onefile \
+          --windowed \
+          --name MySQLBackupTool \
+          --win-private-assemblies \
+          --win-no-prefer-redirects \
+          --add-data "venv/Lib/site-packages/mysql;mysql" \
+          main.py
     - name: Upload Artifact
-      uses: actions/upload-artifact@v4  # 关键修改：更新到v4
+      uses: actions/upload-artifact@v4
       with:
         name: MySQLBackupTool
         path: dist/MySQLBackupTool.exe
