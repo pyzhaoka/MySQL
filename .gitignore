@@ -1,5 +1,16 @@
-# 清除所有未跟踪文件（危险！操作前先确认）
-git clean -fd
+# Python
+__pycache__/
+*.py[cod]
 
-# 查看将被删除的文件（安全检查）
-git clean -fdn
+# PyInstaller
+dist/
+build/
+*.spec
+
+# IDE
+.vscode/
+.idea/
+
+# Environments
+venv/
+.env
