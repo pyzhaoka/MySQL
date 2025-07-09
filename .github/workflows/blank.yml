@@ -18,8 +18,29 @@ jobs:
         python-version: '3.11'
     
     - name: Install dependencies
-      run: pip install -r requirements.txt pyinstaller
-           
+      run: |
+        pip install pyinstaller==5.13.0 PyQt5==5.15.9 mysql-connector-python==8.0.33
+        
+    - name: Download MySQL Tools
+      shell: pwsh
+      run: |
+        # 下载精简版MySQL客户端工具
+        $url = "https://cdn.mysql.com/archives/mysql-5.7/mysql-5.7.39-winx64.zip"
+        Invoke-WebRequest -Uri $url -OutFile mysql.zip
+        Expand-Archive -Path mysql.zip -DestinationPath mysql-temp
+        
+        # 创建工具目录
+        New-Item -ItemType Directory -Path "mysql/bin" -Force
+        
+        # 只复制必要文件 (比完整安装小90%)
+        Copy-Item "mysql-temp/mysql-5.7.39-winx64/bin/mysql.exe" -Destination "mysql/bin"
+        Copy-Item "mysql-temp/mysql-5.7.39-winx64/bin/mysqldump.exe" -Destination "mysql/bin"
+        Copy-Item "mysql-temp/mysql-5.7.39-winx64/bin/libmysql.dll" -Destination "mysql/bin"
+        
+        # 清理
+        Remove-Item mysql.zip
+        Remove-Item mysql-temp -Recurse -Force
+    
     - name: Build EXE
       shell: pwsh
       run: |
@@ -28,13 +49,16 @@ jobs:
           --windowed `
           --name MySQLBackupTool `
           --add-data "mysql/bin;mysql/bin" `
-          --collect-submodules "mysql.connector" `
+          --win-private-assemblies `
+          --win-no-prefer-redirects `
+          --paths $env:pythonLocation\Lib\site-packages `
+          --hidden-import mysql.connector `
           main.py
     
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: MySQLBackupTool
+        name: MySQLBackupTool_Package
         path: |
           dist/MySQLBackupTool.exe
-          mysql/bin/*
+          mysql/bin/
