@@ -21,24 +21,60 @@ jobs:
       run: |
         pip install pyinstaller==5.13.0 PyQt5==5.15.9 mysql-connector-python==8.0.33
         
-    - name: Download MySQL Tools
+    - name: Download and Prepare MySQL Tools
       shell: pwsh
       run: |
-        # 下载精简版MySQL客户端工具
-        $url = "https://cdn.mysql.com/archives/mysql-5.7/mysql-5.7.39-winx64.zip"
+        # 下载更稳定的MySQL 8.0精简版
+        $url = "https://cdn.mysql.com/archives/mysql-8.0/mysql-8.0.33-winx64.zip"
         Invoke-WebRequest -Uri $url -OutFile mysql.zip
+        
+        # 解压到临时目录
         Expand-Archive -Path mysql.zip -DestinationPath mysql-temp
         
-        # 创建工具目录
+        # 创建目标目录
         New-Item -ItemType Directory -Path "mysql/bin" -Force
         
-        # 只复制必要文件 (比完整安装小90%)
-        Copy-Item "mysql-temp/mysql-5.7.39-winx64/bin/mysql.exe" -Destination "mysql/bin"
-        Copy-Item "mysql-temp/mysql-5.7.39-winx64/bin/mysqldump.exe" -Destination "mysql/bin"
-        Copy-Item "mysql-temp/mysql-5.7.39-winx64/bin/libmysql.dll" -Destination "mysql/bin"
+        # 动态查找真实的解压路径
+        $mysqlBinPath = Get-ChildItem -Path "mysql-temp" -Recurse -Directory | 
+                        Where-Object { $_.Name -eq "bin" } | 
+                        Select-Object -First 1 -ExpandProperty FullName
+        
+        if (-not $mysqlBinPath) {
+            Write-Error "找不到MySQL的bin目录！"
+            Get-ChildItem -Path "mysql-temp" -Recurse | Out-Host
+            exit 1
+        }
+        
+        # 复制必需文件
+        $requiredFiles = @("mysql.exe", "mysqldump.exe", "libmysql.dll")
+        foreach ($file in $requiredFiles) {
+            $source = Join-Path -Path $mysqlBinPath -ChildPath $file
+            if (Test-Path $source) {
+                Copy-Item -Path $source -Destination "mysql/bin"
+            } else {
+                Write-Warning "未找到必需文件: $file"
+                # 从备用位置查找（某些版本可能放在lib目录）
+                $altPath = $source -replace "bin", "lib"
+                if (Test-Path $altPath) {
+                    Copy-Item -Path $altPath -Destination "mysql/bin"
+                } else {
+                    Write-Error "无法找到必需文件: $file"
+                    exit 1
+                }
+            }
+        }
+        
+        # 验证文件
+        if (-not (Test-Path "mysql/bin/mysql.exe") -or 
+            -not (Test-Path "mysql/bin/mysqldump.exe") -or 
+            -not (Test-Path "mysql/bin/libmysql.dll")) {
+            Write-Error "MySQL工具准备失败！"
+            Get-ChildItem -Path "mysql/bin" | Out-Host
+            exit 1
+        }
         
         # 清理
-        Remove-Item mysql.zip
+        Remove-Item mysql.zip -Force
         Remove-Item mysql-temp -Recurse -Force
     
     - name: Build EXE
